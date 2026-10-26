@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CloudDeploy — Ship static websites to AWS S3 with a fully automated CI/CD pipeline." />
+  <title>CloudDeploy — Ship Faster on AWS</title>
+
+  <style>
+    /* ============ RESET & VARIABLES ============ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:            #0b0f19;
+      --bg-alt:        #111827;
+      --card:          #161d2e;
+      --border:        #232d42;
+      --text:          #e6ebf5;
+      --text-dim:      #8b97ad;
+      --accent:        #6366f1;
+      --accent-2:      #22d3ee;
+      --accent-grad:   linear-gradient(135deg, #6366f1 0%, #22d3ee 100%);
+      --radius:        16px;
+      --shadow:        0 20px 40px -15px rgba(0,0,0,.6);
+      --transition:    .3s cubic-bezier(.4,0,.2,1);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+
+    .container {
+      width: min(1140px, 90%);
+      margin-inline: auto;
+    }
+
+    /* ============ NAVBAR ============ */
+    .nav {
+      position: fixed;
+      inset: 0 0 auto 0;
+      z-index: 100;
+      padding: 1rem 0;
+      background: rgba(11, 15, 25, .75);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid transparent;
+      transition: var(--transition);
+    }
+    .nav.scrolled { border-bottom-color: var(--border); }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: -.02em;
+    }
+    .logo-mark {
+      width: 34px; height: 34px;
+      border-radius: 9px;
+      background: var(--accent-grad);
+      display: grid; place-items: center;
+      font-size: 1rem;
+      box-shadow: 0 0 24px rgba(99,102,241,.5);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      list-style: none;
+    }
+    .nav-links a {
+      font-size: .92rem;
+      color: var(--text-dim);
+      font-weight: 500;
+      transition: color var(--transition);
+    }
+    .nav-links a:hover { color: var(--text); }
+
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      background: none; border: 0; cursor: pointer;
+      padding: 6px;
+    }
+    .hamburger span {
+      width: 24px; height: 2px;
+      background: var(--text);
+      border-radius: 2px;
+      transition: var(--transition);
+    }
+
+    /* ============ BUTTONS ============ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
+      padding: .8rem 1.6rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: .95rem;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: var(--accent-grad);
+      color: #fff;
+      box-shadow: 0 8px 24px -6px rgba(99,102,241,.6);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 32px -8px rgba(99,102,241,.75);
+    }
+    .btn-ghost {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .btn-ghost:hover {
+      border-color: var(--accent);
+      background: rgba(99,102,241,.08);
+    }
+
+    /* ============ HERO ============ */
+    .hero {
+      position: relative;
+      padding: 11rem 0 6rem;
+      text-align: center;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -220px; left: 50%;
+      transform: translateX(-50%);
+      width: 900px; height: 900px;
+      background: radial-gradient(circle, rgba(99,102,241,.22) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      top: 100px; right: -150px;
+      width: 550px; height: 550px;
+      background: radial-gradient(circle, rgba(34,211,238,.14) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .4rem 1rem;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--accent-2);
+      background: rgba(34,211,238,.1);
+      border: 1px solid rgba(34,211,238,.3);
+      border-radius: 100px;
+      margin-bottom: 1.5rem;
+    }
+    .badge .dot {
+      width: 7px; height: 7px;
+      background: var(--accent-2);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: .4; transform: scale(.8); }
+    }
+
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 4.4rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -.03em;
+      margin-bottom: 1.5rem;
+    }
+    .hero h1 .gradient {
+      background: var(--accent-grad);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .hero p {
+      max-width: 620px;
+      margin: 0 auto 2.5rem;
+      font-size: 1.12rem;
+      color: var(--text-dim);
+    }
+    .hero-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ============ TERMINAL SNIPPET ============ */
+    .terminal {
+      max-width: 640px;
+      margin: 4rem auto 0;
+      background: #0d1220;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      text-align: left;
+      overflow: hidden;
+    }
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .75rem 1rem;
+      background: #141c2e;
+      border-bottom: 1px solid var(--border);
+    }
+    .terminal-bar span {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+    }
+    .terminal-bar .r { background: #ff5f57; }
+    .terminal-bar .y { background: #febc2e; }
+    .terminal-bar .g { background: #28c840; }
+    .terminal-bar small {
+      margin-left: auto;
+      font-size: .72rem;
+      color: var(--text-dim);
+    }
+    .terminal pre {
+      padding: 1.25rem 1.4rem;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: .85rem;
+      line-height: 1.9;
+      overflow-x: auto;
+      color: #cbd5e1;
+    }
+    .terminal .cmd { color: var(--accent-2); }
+    .terminal .flag { color: #f472b6; }
+    .terminal .str { color: #a3e635; }
+    .terminal .cmt { color: #64748b; }
+
+    /* ============ SECTIONS ============ */
+    section { padding: 6rem 0; }
+    .section-head {
+      text-align: center;
+      margin-bottom: 3.5rem;
+    }
+    .section-head h2 {
+      font-size: clamp(1.9rem, 4vw, 2.7rem);
+      font-weight: 800;
+      letter-spacing: -.02em;
+      margin-bottom: .8rem;
+    }
+    .section-head p {
+      color: var(--text-dim);
+      max-width: 540px;
+      margin-inline: auto;
+    }
+
+    .eyebrow {
+      display: block;
+      font-size: .8rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: .8rem;
+    }
+
+    /* ============ FEATURES ============ */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+    .feature-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 2px;
+      background: var(--accent-grad);
+      opacity: 0;
+      transition: var(--transition);
+    }
+    .feature-card:hover {
+      transform: translateY(-6px);
+      border-color: rgba(99,102,241,.45);
+      box-shadow: var(--shadow);
+    }
+    .feature-card:hover::before { opacity: 1; }
+
+    .feature-icon {
+      width: 50px; height: 50px;
+      border-radius: 12px;
+      display: grid; place-items: center;
+      font-size: 1.4rem;
+      background: rgba(99,102,241,.12);
+      border: 1px solid rgba(99,102,241,.28);
+      margin-bottom: 1.2rem;
+    }
+    .feature-card h3 {
+      font-size: 1.15rem;
+      margin-bottom: .6rem;
+      letter-spacing: -.01em;
+    }
+    .feature-card p {
+      font-size: .93rem;
+      color: var(--text-dim);
+    }
+
+    /* ============ PIPELINE ============ */
+    .pipeline {
+      background: var(--bg-alt);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .pipeline-flow {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.2rem;
+      align-items: stretch;
+    }
+    .pipe-step {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.8rem 1.5rem;
+      text-align: center;
+      position: relative;
+      transition: var(--transition);
+    }
+    .pipe-step:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+    }
+    .pipe-num {
+      width: 40px; height: 40px;
+      margin: 0 auto 1rem;
+      border-radius: 50%;
+      background: var(--accent-grad);
+      color: #fff;
+      font-weight: 800;
+      display: grid; place-items: center;
+      font-size: .95rem;
+    }
+    .pipe-step h4 {
+      font-size: 1rem;
+      margin-bottom: .4rem;
+    }
+    .pipe-step p {
+      font-size: .85rem;
+      color: var(--text-dim);
+    }
+
+    /* ============ STATS ============ */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1.5rem;
+      text-align: center;
+    }
+    .stat h3 {
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      font-weight: 800;
+      background: var(--accent-grad);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      letter-spacing: -.03em;
+    }
+    .stat p {
+      font-size: .88rem;
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    /* ============ CTA ============ */
+    .cta {
+      text-align: center;
+      background: linear-gradient(160deg, rgba(99,102,241,.12), rgba(34,211,238,.06));
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 4rem 2rem;
+    }
+    .cta h2 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 800;
+      margin-bottom: 1rem;
+      letter-spacing: -.02em;
+    }
+    .cta p {
+      color: var(--text-dim);
+      margin-bottom: 2rem;
+      max-width: 520px;
+      margin-inline: auto;
+    }
+
+    /* ============ FOOTER ============ */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 0;
+      text-align: center;
+      font-size: .87rem;
+      color: var(--text-dim);
+    }
+    footer .logo {
+      justify-content: center;
+      margin-bottom: .8rem;
+    }
+
+    /* ============ SCROLL REVEAL ============ */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity .7s ease, transform .7s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ============ RESPONSIVE ============ */
+    @media (max-width: 768px) {
+      .hamburger { display: flex; }
+
+      .nav-links {
+        position: absolute;
+        top: 100%; left: 0; right: 0;
+        flex-direction: column;
+        gap: 0;
+        background: #0d1220;
+        border-bottom: 1px solid var(--border);
+        padding: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height var(--transition);
+      }
+      .nav-links.open { max-height: 320px; }
+      .nav-links li { width: 100%; }
+      .nav-links a {
+        display: block;
+        padding: 1rem 5%;
+        border-top: 1px solid var(--border);
+      }
+      .nav-links .btn { margin: 1rem 5%; width: calc(100% - 10%); }
+
+      .hero { padding: 9rem 0 4rem; }
+      section { padding: 4.5rem 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============ NAVBAR ============ -->
+  <header class="nav" id="nav">
+    <div class="container nav-inner">
+      <a href="#" class="logo">
+        <span class="logo-mark">☁</span>
+        CloudDeploy
+      </a>
+
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#pipeline">Pipeline</a></li>
+        <li><a href="#stats">Stats</a></li>
+        <li><a href="#contact" class="btn btn-primary">Get Started</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="container">
+      <span class="badge"><span class="dot"></span> CI/CD Pipeline Live on AWS</span>
+
+      <h1>
+        Ship static websites<br />
+        <span class="gradient">at the speed of git push.</span>
+      </h1>
+
+      <p>
+        An automated deployment pipeline that takes your code from GitHub,
+        through AWS CodeCommit &amp; CodePipeline, straight to a globally
+        available S3 bucket — no manual uploads, ever.
+      </p>
+
+      <div class="hero-actions">
+        <a href="#pipeline" class="btn btn-primary">See How It Works →</a>
+        <a href="#features" class="btn btn-ghost">Explore Features</a>
+      </div>
+
+      <!-- Terminal preview -->
+      <div class="terminal">
+        <div class="terminal-bar">
+          <span class="r"></span><span class="y"></span><span class="g"></span>
+          <small>bash — deploy.sh</small>
+        </div>
+        <pre><span class="cmt"># Push to GitHub → triggers pipeline</span>
+<span class="cmd">git</span> add . &amp;&amp; <span class="cmd">git</span> commit <span class="flag">-m</span> <span class="str">"update hero section"</span>
+<span class="cmd">git</span> push origin main
+
+<span class="cmt"># CodePipeline picks it up automatically</span>
+<span class="flag">✓</span> Source      → CodeCommit
+<span class="flag">✓</span> Deploy      → Amazon S3
+<span class="flag">✓</span> Status      → <span class="str">Succeeded in 42s</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FEATURES ============ -->
+  <section id="features">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">Why CloudDeploy</span>
+        <h2>Everything you need to ship</h2>
+        <p>Built on AWS-native services so you never manage a server.</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card reveal">
+          <div class="feature-icon">⚡</div>
+          <h3>Instant Deploys</h3>
+          <p>Every push triggers CodePipeline within seconds — no manual uploads, no waiting, no drift.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">🔒</div>
+          <h3>Secure by Default</h3>
+          <p>IAM-scoped permissions and isolated S3 buckets keep your artifacts and credentials locked down.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">🌍</div>
+          <h3>Global Reach</h3>
+          <p>S3-backed static hosting scales to any traffic level, with optional CloudFront for edge caching.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">🔄</div>
+          <h3>Versioned History</h3>
+          <p>Roll back to any previous commit or artifact — every deploy is traceable from GitHub to S3.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">💰</div>
+          <h3>Near-Zero Cost</h3>
+          <p>Pay pennies for S3 storage and the free tier of CodePipeline. Perfect for portfolios and demos.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">🧩</div>
+          <h3>Extensible</h3>
+          <p>Drop in CodeBuild, Lambda, or CloudFront when you outgrow the basic pipeline — no rewrite needed.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PIPELINE ============ -->
+  <section class="pipeline" id="pipeline">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">The Architecture</span>
+        <h2>Four stages. Zero surprises.</h2>
+        <p>From your laptop to a live URL — every step automated.</p>
+      </div>
+
+      <div class="pipeline-flow">
+        <div class="pipe-step reveal">
+          <div class="pipe-num">1</div>
+          <h4>GitHub</h4>
+          <p>Your source of truth. Push code as usual.</p>
+        </div>
+        <div class="pipe-step reveal">
+          <div class="pipe-num">2</div>
+          <h4>CodeCommit</h4>
+          <p>Mirror repo that CodePipeline watches for changes.</p>
+        </div>
+        <div class="pipe-step reveal">
+          <div class="pipe-num">3</div>
+          <h4>CodePipeline</h4>
+          <p>Orchestrates the build &amp; deploy stages.</p>
+        </div>
+        <div class="pipe-step reveal">
+          <div class="pipe-num">4</div>
+          <h4>Amazon S3</h4>
+          <p>Serves your site to the world at a public endpoint.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STATS ============ -->
+  <section id="stats">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">By The Numbers</span>
+        <h2>Performance that speaks</h2>
+      </div>
+
+      <div class="stats">
+        <div class="stat reveal">
+          <h3 data-count="99">0</h3>
+          <p>% Uptime (S3 SLA)</p>
+        </div>
+        <div class="stat reveal">
+          <h3 data-count="42">0</h3>
+          <p>Seconds per Deploy</p>
+        </div>
+        <div class="stat reveal">
+          <h3 data-count="4">0</h3>
+          <p>Pipeline Stages</p>
+        </div>
+        <div class="stat reveal">
+          <h3 data-count="0">0</h3>
+          <p>Servers to Manage</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CTA ============ -->
+  <section id="contact">
+    <div class="container">
+      <div class="cta reveal">
+        <h2>Ready to ship?</h2>
+        <p>Your site is one push away. Follow the deployment guide and you'll be live in under 15 minutes.</p>
+        <a href="#" class="btn btn-primary" onclick="alert('Site successfully deployed via CodePipeline!'); return false;">
+          Deploy Now 🚀
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer>
+    <div class="container">
+      <div class="logo">
+        <span class="logo-mark">☁</span> CloudDeploy
+      </div>
+      <p>© <span id="year"></span> CloudDeploy. Built for the AWS static-site workflow.</p>
+    </div>
+  </footer>
+
+  <script>
+    /* -------- Sticky nav shadow -------- */
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('scrolled', window.scrollY > 20);
+    });
+
+    /* -------- Mobile menu -------- */
+    const hamburger = document.getElementById('hamburger');
+    const navLinks  = document.getElementById('navLinks');
+    hamburger.addEventListener('click', () => navLinks.classList.toggle('open'));
+    navLinks.querySelectorAll('a').forEach(a =>
+      a.addEventListener('click', () => navLinks.classList.remove('open'))
+    );
+
+    /* -------- Scroll reveal -------- */
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    /* -------- Animated counters -------- */
+    const counters = document.querySelectorAll('[data-count]');
+    const countObserver = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        const el = e.target;
+        const target = +el.dataset.count;
+        let current = 0;
+        const step = Math.max(1, Math.ceil(target / 40));
+        const timer = setInterval(() => {
+          current += step;
+          if (current >= target) { current = target; clearInterval(timer); }
+          el.textContent = current;
+        }, 30);
+        countObserver.unobserve(el);
+      });
+    }, { threshold: 0.6 });
+    counters.forEach(c => countObserver.observe(c));
+
+    /* -------- Year in footer -------- */
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+
+</body>
+</html>
